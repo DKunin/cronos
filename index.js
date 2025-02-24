@@ -134,9 +134,9 @@ async function runJob() {
 
   sortedDates.forEach((date, index) => {
     const [day, month, year] = date.split("/");
-    const isoDate = `${year}-${month}-${day}`;
-
-    const formattedDate = new Date(isoDate).toLocaleDateString(["ru"], {
+    const formattedDate = new Date(
+      Date.UTC(year, month - 1, day)
+    ).toLocaleDateString("ru", {
       weekday: "long",
       month: "long",
       day: "numeric",

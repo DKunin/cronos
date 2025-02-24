@@ -133,20 +133,11 @@ async function runJob() {
   );
 
   sortedDates.forEach((date, index) => {
-    const [day, month, year] = date.split("/");
-    const formattedDate = new Date(
-      Date.UTC(year, month - 1, day)
-    ).toLocaleDateString("ru", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-
     if (index > 0) {
       message += `\n---\n`; // Separator between days
     }
 
-    message += `📅 *${formattedDate}*\n\n`;
+    message += `📅 *${date}*\n\n`;
 
     eventsByDay[date].forEach((event) => {
       const eventTime = event.start?.dateTime

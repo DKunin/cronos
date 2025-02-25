@@ -1,8 +1,23 @@
+"use strict";
+
 const { google } = require("googleapis");
 const cron = require("node-cron");
 const TelegramBot = require("node-telegram-bot-api");
 const dotenv = require("dotenv");
 const fs = require("fs");
+const moment = require("moment");
+require("moment/locale/ru"); // Load Russian locale
+
+function formatDate(dateStr) {
+  return moment(dateStr, [
+    "DD/MM/YYYY",
+    "YYYY-MM-DD",
+    "MM-DD-YYYY",
+    "DD.MM.YYYY",
+  ])
+    .locale("ru")
+    .format("dddd, D MMMM");
+}
 
 dotenv.config();
 
@@ -137,7 +152,7 @@ async function runJob() {
       message += `\n---\n`; // Separator between days
     }
 
-    message += `📅 *${date}*\n\n`;
+    message += `📅 *${formatDate(date)}*\n\n`;
 
     eventsByDay[date].forEach((event) => {
       const eventTime = event.start?.dateTime

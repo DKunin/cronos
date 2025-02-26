@@ -49,7 +49,7 @@ It will also **run automatically every day at 12:00 PM**.
 
 ---
 
-## **🔧 Customization**
+## **Customization**
 - Modify `runJob()` in **`index.js`** to adjust the message format.  
 - Change the cron schedule in:
   ```js

@@ -56,8 +56,3 @@ It will also **run automatically every day at 12:00 PM**.
   cron.schedule("0 12 * * *", runJob);
   ```
   (Uses **cron syntax**, adjust timing as needed.)
-
----
-
-## **📞 Need Help?**
-Feel free to open an issue or reach out! 🚀

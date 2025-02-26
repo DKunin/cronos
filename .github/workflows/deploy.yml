@@ -22,3 +22,12 @@ jobs:
           script: |
             cd /var/apps/cronos
             ./deploy.sh
+      - name: Send Telegram Notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          -d "chat_id=$TELEGRAM_CHAT_ID" \
+          -d "text=🚀 *Deployment Successful!*%0A%0A✅ Repository: *${{ github.repository }}*%0A🔄 Branch: *${{ github.ref_name }}*%0A🔧 Commit: *${{ github.sha }}*%0A💡 Triggered by: *${{ github.actor }}*" \
+          -d "parse_mode=Markdown"

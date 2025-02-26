@@ -1,9 +1,7 @@
-Here’s a simple **README.md** for your project:
-
----
-
 ### **📅 Google Calendar Telegram Reminder**
 This Node.js script fetches upcoming events from **Google Calendar** using a **service account** and sends daily reminders via **Telegram**.
+
+[![Deploy to Server](https://github.com/DKunin/cronos/actions/workflows/deploy.yml/badge.svg)](https://github.com/DKunin/cronos/actions/workflows/deploy.yml)
 
 ---
 

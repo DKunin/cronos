@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source /home/dekunin/.bash_profile
+
 echo "Starting deployment..."
 
 # Go to project directory
@@ -9,9 +11,9 @@ cd /var/apps/cronos || exit
 git pull origin main
 
 # Install dependencies (optional, if using npm)
-/home/dekunin/.nvm/versions/node/v20.16.0/bin/npm install
+npm install
 
 # Restart pm2 process (replace 'your-pm2-process' with your actual process name)
-/home/dekunin/.nvm/versions/node/v20.16.0/bin/pm2 restart cronos
+pm2 restart cronos
 
 echo "Deployment complete!"

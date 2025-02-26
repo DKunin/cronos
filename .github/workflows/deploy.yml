@@ -1,0 +1,24 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main 
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: 62.217.190.139
+          username: dekunin
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /var/apps/cronos
+            ./deploy.sh

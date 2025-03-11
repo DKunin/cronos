@@ -110,7 +110,10 @@ async function getUpcomingEvents() {
  */
 async function sendTelegramMessage(message) {
   try {
-    await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
+    await bot.sendMessage(chatId, message, {
+      parse_mode: "Markdown",
+      disable_web_page_preview: true,
+    });
     console.log("Telegram notification sent!");
   } catch (error) {
     console.error("Error sending Telegram message:", error);
@@ -162,7 +165,7 @@ async function runJob() {
           })
         : "All day";
 
-      message += `🕒 *${eventTime}* - ${event.summary}`;
+      message += `🕒 *${eventTime}* - [${event.summary}](${event.htmlLink})`;
 
       if (event.description) {
         message += `\n📄 ${event.description}`;
@@ -172,11 +175,7 @@ async function runJob() {
         message += `\n📍 ${event.location}`;
       }
 
-      if (event.htmlLink) {
-        message += `\n🔗 [View Event](${event.htmlLink})`;
-      }
-
-      message += `\n\n`; // Ensures spacing after each event
+      message += `\n`; // Ensures spacing after each event
     });
   });
 

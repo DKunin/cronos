@@ -19,6 +19,33 @@ function formatDate(dateStr) {
     .format("dddd, D MMMM");
 }
 
+const ALERT_STATE_FILE = "alert_state.json";
+
+function hasAlertBeenSentToday() {
+  if (!fs.existsSync(ALERT_STATE_FILE)) {
+    return false;
+  }
+  try {
+    const state = JSON.parse(fs.readFileSync(ALERT_STATE_FILE, "utf8"));
+    const today = moment().format("YYYY-MM-DD");
+    return state.lastAlertDate === today;
+  } catch (error) {
+    console.error("Error reading alert state:", error);
+    return false; // Assume not sent if state is corrupted
+  }
+}
+
+function recordAlertSentToday() {
+  const today = moment().format("YYYY-MM-DD");
+  const state = { lastAlertDate: today };
+  try {
+    fs.writeFileSync(ALERT_STATE_FILE, JSON.stringify(state));
+    console.log("Recorded alert sent for today.");
+  } catch (error) {
+    console.error("Error writing alert state:", error);
+  }
+}
+
 dotenv.config();
 
 // Load service account credentials
@@ -121,6 +148,50 @@ async function sendTelegramMessage(message) {
 }
 
 /**
+ * Checks the total online time for the day and sends an alert if it exceeds 5 hours.
+ */
+async function checkDailyOnlineStatus() {
+  console.log("Checking daily online status...");
+
+  if (hasAlertBeenSentToday()) {
+    console.log("Alert for >5 hours online time has already been sent today.");
+    return;
+  }
+
+  const events = await getTodayEvents();
+  if (events.length === 0) {
+    console.log("No events found for today.");
+    return;
+  }
+
+  let totalDuration = 0;
+  const onlineEvents = events.filter(
+    (event) =>
+      event.summary &&
+      event.summary.toLowerCase().includes("online") &&
+      event.start.dateTime &&
+      event.end.dateTime
+  );
+
+  onlineEvents.forEach((event) => {
+    const startTime = moment(event.start.dateTime);
+    const endTime = moment(event.end.dateTime);
+    totalDuration += moment.duration(endTime.diff(startTime)).asMilliseconds();
+  });
+
+  const hours = totalDuration / (1000 * 60 * 60);
+  console.log(`Total online time today: ${hours.toFixed(2)} hours.`);
+
+  if (hours > 5) {
+    const message = `🚨 *Alert:* Daily online time has exceeded 5 hours. Total today: ${hours.toFixed(
+      2
+    )} hours.`;
+    await sendTelegramMessage(message);
+    recordAlertSentToday();
+  }
+}
+
+/**
  * Fetch events and send Telegram notifications
  */
 async function runJob() {
@@ -182,7 +253,14 @@ async function runJob() {
   await sendTelegramMessage(message);
 }
 
-// Schedule cron job to run daily at 12:00 PM
+// Schedule cron job to run daily at 8:00 AM
 cron.schedule("0 8 * * *", runJob);
-runJob(); // Run immediately when the script starts
-console.log("Cron job scheduled to run daily at 08:00 PM.");
+console.log("Cron job for upcoming events scheduled to run daily at 08:00 AM.");
+
+// Schedule cron job for online status check to run hourly
+cron.schedule("0 * * * *", checkDailyOnlineStatus);
+console.log("Cron job for daily online status scheduled to run hourly.");
+
+// Initial runs
+runJob();
+checkDailyOnlineStatus();

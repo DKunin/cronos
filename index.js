@@ -105,6 +105,22 @@ async function getUpcomingEvents() {
   }
 }
 
+async function getEventDetails(eventId) {
+  try {
+    const response = await calendar.events.get({
+      calendarId,
+      eventId,
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Error fetching event details for ${eventId}:`,
+      error.response ? error.response.data : error
+    );
+    return null;
+  }
+}
+
 /**
  * Send a notification via Telegram
  */
@@ -150,14 +166,14 @@ async function runJob() {
     (a, b) => new Date(a) - new Date(b)
   );
 
-  sortedDates.forEach((date, index) => {
+  for (const [index, date] of sortedDates.entries()) {
     if (index > 0) {
       message += `\n---\n`; // Separator between days
     }
 
     message += `📅 *${formatDate(date)}*\n\n`;
 
-    eventsByDay[date].forEach((event) => {
+    for (const event of eventsByDay[date]) {
       const eventTime = event.start?.dateTime
         ? new Date(event.start.dateTime).toLocaleTimeString([], {
             hour: "2-digit",
@@ -165,7 +181,13 @@ async function runJob() {
           })
         : "All day";
 
-      message += `🕒 *${eventTime}* - [${event.summary}](${event.htmlLink})`;
+      let summary = event.summary;
+      if (!summary) {
+        const details = await getEventDetails(event.id);
+        summary = details?.summary || "Untitled";
+      }
+
+      message += `🕒 *${eventTime}* - [${summary}](${event.htmlLink})`;
 
       if (event.description) {
         message += `\n📄 ${event.description}`;
@@ -176,8 +198,8 @@ async function runJob() {
       }
 
       message += `\n`; // Ensures spacing after each event
-    });
-  });
+    }
+  }
 
   await sendTelegramMessage(message);
 }

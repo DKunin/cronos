@@ -26,7 +26,41 @@ const serviceAccount = JSON.parse(fs.readFileSync("cronus.json", "utf8"));
 
 // Google Calendar settings
 const SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"];
-const calendarId = process.env.CALENDAR_ID || "primary";
+function parseCalendarIdsFromEnv(value) {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((id) => String(id).trim()).filter(Boolean);
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((id) => String(id).trim()).filter(Boolean);
+      }
+    } catch (error) {
+      console.warn("Failed to parse CALENDAR_IDS as JSON. Falling back to comma separation.");
+    }
+  }
+
+  return trimmed.split(",").map((id) => id.trim()).filter(Boolean);
+}
+
+const calendarEnv =
+  process.env.CALENDAR_IDS || process.env.CALENDAR_ID || "primary";
+const parsedCalendarIds = parseCalendarIdsFromEnv(calendarEnv);
+const calendarIds =
+  parsedCalendarIds.length > 0
+    ? Array.from(new Set(parsedCalendarIds))
+    : ["primary"];
 
 // Telegram settings
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -52,28 +86,63 @@ const calendar = google.calendar({ version: "v3", auth });
 /**
  * Fetch today's events from Google Calendar
  */
+function getEventStartDate(event) {
+  if (event.start?.dateTime) {
+    return new Date(event.start.dateTime);
+  }
+
+  if (event.start?.date) {
+    return new Date(event.start.date);
+  }
+
+  return null;
+}
+
+async function fetchEventsForCalendar(calendarId, timeMin, timeMax) {
+  try {
+    const response = await calendar.events.list({
+      calendarId,
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+
+    return (response.data.items || []).map((event) => ({
+      ...event,
+      sourceCalendarId: calendarId,
+    }));
+  } catch (error) {
+    console.error(
+      `Error fetching events for calendar ${calendarId}:`,
+      error.response ? error.response.data : error
+    );
+    return [];
+  }
+}
+
+async function getEventsInRange(timeMin, timeMax) {
+  const events = await Promise.all(
+    calendarIds.map((calendarId) =>
+      fetchEventsForCalendar(calendarId, timeMin, timeMax)
+    )
+  );
+
+  return events
+    .flat()
+    .sort((a, b) => {
+      const first = getEventStartDate(a)?.getTime() || 0;
+      const second = getEventStartDate(b)?.getTime() || 0;
+      return first - second;
+    });
+}
+
 async function getTodayEvents() {
   const now = new Date();
   const startOfDay = new Date(now.setHours(0, 0, 0, 0)).toISOString();
   const endOfDay = new Date(now.setHours(23, 59, 59, 999)).toISOString();
 
-  try {
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: startOfDay,
-      timeMax: endOfDay,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-
-    return response.data.items || [];
-  } catch (error) {
-    console.error(
-      "Error fetching events:",
-      error.response ? error.response.data : error
-    );
-    return [];
-  }
+  return getEventsInRange(startOfDay, endOfDay);
 }
 
 async function getUpcomingEvents() {
@@ -86,26 +155,10 @@ async function getUpcomingEvents() {
 
   console.log(`Fetching events from ${startOfDay} to ${endOfDay}`);
 
-  try {
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: startOfDay,
-      timeMax: endOfDay,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-
-    return response.data.items || [];
-  } catch (error) {
-    console.error(
-      "Error fetching events:",
-      error.response ? error.response.data : error
-    );
-    return [];
-  }
+  return getEventsInRange(startOfDay, endOfDay);
 }
 
-async function getEventDetails(eventId) {
+async function getEventDetails(calendarId, eventId) {
   try {
     const response = await calendar.events.get({
       calendarId,
@@ -114,7 +167,7 @@ async function getEventDetails(eventId) {
     return response.data;
   } catch (error) {
     console.error(
-      `Error fetching event details for ${eventId}:`,
+      `Error fetching event details for ${eventId} on ${calendarId}:`,
       error.response ? error.response.data : error
     );
     return null;
@@ -151,9 +204,10 @@ async function runJob() {
   // Group events by day
   const eventsByDay = {};
   events.forEach((event) => {
-    const eventDate = event.start?.dateTime
-      ? new Date(event.start.dateTime).toLocaleDateString()
-      : new Date(event.start.date).toLocaleDateString();
+    const eventStartDate = getEventStartDate(event);
+    const eventDate = eventStartDate
+      ? eventStartDate.toLocaleDateString()
+      : new Date().toLocaleDateString();
 
     if (!eventsByDay[eventDate]) {
       eventsByDay[eventDate] = [];
@@ -183,11 +237,22 @@ async function runJob() {
 
       let summary = event.summary;
       if (!summary) {
-        const details = await getEventDetails(event.id);
+        const details = await getEventDetails(
+          event.sourceCalendarId,
+          event.id
+        );
         summary = details?.summary || "Untitled";
       }
 
-      message += `🕒 *${eventTime}* - [${summary}](${event.htmlLink})`;
+      const summaryLink = event.htmlLink
+        ? `[${summary}](${event.htmlLink})`
+        : summary;
+
+      message += `🕒 *${eventTime}* - ${summaryLink}`;
+
+      if (calendarIds.length > 1) {
+        message += `\n🗂 ${event.sourceCalendarId}`;
+      }
 
       if (event.description) {
         message += `\n📄 ${event.description}`;

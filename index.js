@@ -270,7 +270,7 @@ async function runJob() {
       message += `🕒 *${eventTime}* - ${summaryLink}`;
 
       if (calendarIds.length > 1) {
-        message += `\n🗂 ${event.sourceCalendarId}`;
+        message += `\n🗂 ${event.organizer?.displayName}`;
       }
 
       if (event.description) {

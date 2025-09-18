@@ -75,13 +75,28 @@ if (!botToken || !chatId) {
 const bot = new TelegramBot(botToken, { polling: false });
 
 // Authenticate Google API client
-const auth = new google.auth.JWT(
-  serviceAccount.client_email,
-  null,
-  serviceAccount.private_key,
-  SCOPES
-);
-const calendar = google.calendar({ version: "v3", auth });
+const googleAuth = new google.auth.GoogleAuth({
+  credentials: serviceAccount,
+  scopes: SCOPES,
+  projectId: serviceAccount.project_id,
+});
+
+const quotaProjectId =
+  serviceAccount.quota_project_id || serviceAccount.project_id;
+if (quotaProjectId) {
+  google.options({ quotaProjectId });
+}
+
+let authClientPromise;
+function getAuthClient() {
+  if (!authClientPromise) {
+    authClientPromise = googleAuth.getClient();
+  }
+
+  return authClientPromise;
+}
+
+const calendar = google.calendar({ version: "v3" });
 
 /**
  * Fetch today's events from Google Calendar
@@ -100,7 +115,9 @@ function getEventStartDate(event) {
 
 async function fetchEventsForCalendar(calendarId, timeMin, timeMax) {
   try {
+    const authClient = await getAuthClient();
     const response = await calendar.events.list({
+      auth: authClient,
       calendarId,
       timeMin,
       timeMax,
@@ -160,7 +177,9 @@ async function getUpcomingEvents() {
 
 async function getEventDetails(calendarId, eventId) {
   try {
+    const authClient = await getAuthClient();
     const response = await calendar.events.get({
+      auth: authClient,
       calendarId,
       eventId,
     });

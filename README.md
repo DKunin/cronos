@@ -8,7 +8,8 @@ This Node.js script fetches upcoming events from **Google Calendar** using a **s
 ## **📌 Features**
 ✅ Fetches **events for today + 3 days ahead**  
 ✅ Sends a **Telegram notification** with event details  
-✅ Includes **event time, description, location, and a direct link**  
+✅ Includes **event time, description, location, and a direct link**
+✅ Aggregates events across **multiple calendars** in a single report
 ✅ Runs **daily at 12:00 PM** using a cron job  
 
 ---
@@ -35,7 +36,10 @@ npm install
 ```ini
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token
 TELEGRAM_CHAT_ID=your_chat_id
-CALENDAR_ID=your_calendar_id (or use "primary")
+# Provide a single calendar ID or an array/comma-separated list
+CALENDAR_IDS=["calendar_one@group.calendar.google.com","calendar_two@group.calendar.google.com"]
+# Or fall back to a single calendar ID
+# CALENDAR_ID=primary
 ```
 
 ---
@@ -50,7 +54,8 @@ It will also **run automatically every day at 12:00 PM**.
 ---
 
 ## **Customization**
-- Modify `runJob()` in **`index.js`** to adjust the message format.  
+- Modify `runJob()` in **`index.js`** to adjust the message format.
+- Supply multiple calendars by setting `CALENDAR_IDS` (JSON array or comma-separated list) in your `.env` file.
 - Change the cron schedule in:
   ```js
   cron.schedule("0 12 * * *", runJob);

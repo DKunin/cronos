@@ -208,6 +208,29 @@ async function sendTelegramMessage(message) {
   }
 }
 
+function eventContainsDateKeywords(eventDetails) {
+  if (!eventDetails) {
+    return false;
+  }
+
+  const keywords = ["кино", "театр", "дима с катей на"];
+  const normalizedFields = [
+    eventDetails.summary,
+    eventDetails.description,
+    eventDetails.location,
+  ]
+    .filter(Boolean)
+    .map((field) => field.toLowerCase());
+
+  return normalizedFields.some((field) =>
+    keywords.some((keyword) => field.includes(keyword))
+  );
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Fetch events and send Telegram notifications
  */
@@ -235,6 +258,7 @@ async function runJob() {
   });
 
   let message = "";
+  let hasDateEvent = false;
   const sortedDates = Object.keys(eventsByDay).sort(
     (a, b) => new Date(a) - new Date(b)
   );
@@ -255,12 +279,15 @@ async function runJob() {
         : "All day";
 
       let summary = event.summary;
-      if (!summary) {
-        const details = await getEventDetails(
-          event.sourceCalendarId,
-          event.id
-        );
-        summary = details?.summary || "Untitled";
+      let description = event.description;
+      let location = event.location;
+      let details;
+
+      if (!summary || !description || !location) {
+        details = await getEventDetails(event.sourceCalendarId, event.id);
+        summary = summary || details?.summary || "Untitled";
+        description = description || details?.description;
+        location = location || details?.location;
       }
 
       const summaryLink = event.htmlLink
@@ -268,6 +295,16 @@ async function runJob() {
         : summary;
 
       message += `🕒 *${eventTime}* - ${summaryLink}`;
+
+      if (
+        eventContainsDateKeywords({
+          summary,
+          description,
+          location,
+        })
+      ) {
+        hasDateEvent = true;
+      }
 
       if (calendarIds.length > 1) {
         message += `\n🗂 ${event.organizer?.displayName}`;
@@ -286,6 +323,13 @@ async function runJob() {
   }
 
   await sendTelegramMessage(message);
+
+  if (hasDateEvent) {
+    await delay(15000);
+    await sendTelegramMessage(
+      "Need an additional initiative plan for the date. Be prepared."
+    );
+  }
 }
 
 // Schedule cron job to run daily at 12:00 PM

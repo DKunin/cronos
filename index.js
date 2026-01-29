@@ -332,7 +332,14 @@ async function runJob() {
   }
 }
 
-// Schedule cron job to run daily at 12:00 PM
+// Schedule cron job to run daily at 08:00 PM
 cron.schedule("0 8 * * *", runJob);
+cron.schedule("0 18 * * 2,4", function() {
+  sendMessage("Время оплатить Калиграфию")
+})
+cron.schedule("0 15 * * 3", function() {
+  sendMessage("Время оплатить Репетитора по математике")
+})
+
 runJob(); // Run immediately when the script starts
-console.log("Cron job scheduled to run daily at 08:00 PM.");
+console.log("Cronus started");

@@ -5,19 +5,12 @@ const cron = require("node-cron");
 const TelegramBot = require("node-telegram-bot-api");
 const dotenv = require("dotenv");
 const fs = require("fs");
-const moment = require("moment");
-require("moment/locale/ru"); // Load Russian locale
-
-function formatDate(dateStr) {
-  return moment(dateStr, [
-    "DD/MM/YYYY",
-    "YYYY-MM-DD",
-    "MM-DD-YYYY",
-    "DD.MM.YYYY",
-  ])
-    .locale("ru")
-    .format("dddd, D MMMM");
-}
+const {
+  eventContainsDateKeywords,
+  formatDate,
+  getEventStartDate,
+  parseCalendarIdsFromEnv,
+} = require("./utils");
 
 dotenv.config();
 
@@ -26,33 +19,6 @@ const serviceAccount = JSON.parse(fs.readFileSync("cronus.json", "utf8"));
 
 // Google Calendar settings
 const SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"];
-function parseCalendarIdsFromEnv(value) {
-  if (!value) {
-    return [];
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((id) => String(id).trim()).filter(Boolean);
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return [];
-  }
-
-  if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map((id) => String(id).trim()).filter(Boolean);
-      }
-    } catch (error) {
-      console.warn("Failed to parse CALENDAR_IDS as JSON. Falling back to comma separation.");
-    }
-  }
-
-  return trimmed.split(",").map((id) => id.trim()).filter(Boolean);
-}
 
 const calendarEnv =
   process.env.CALENDAR_IDS || process.env.CALENDAR_ID || "primary";
@@ -101,18 +67,6 @@ const calendar = google.calendar({ version: "v3" });
 /**
  * Fetch today's events from Google Calendar
  */
-function getEventStartDate(event) {
-  if (event.start?.dateTime) {
-    return new Date(event.start.dateTime);
-  }
-
-  if (event.start?.date) {
-    return new Date(event.start.date);
-  }
-
-  return null;
-}
-
 async function fetchEventsForCalendar(calendarId, timeMin, timeMax) {
   try {
     const authClient = await getAuthClient();
@@ -167,7 +121,7 @@ async function getUpcomingEvents() {
   const startOfDay = new Date(now.setHours(0, 0, 0, 0)).toISOString();
 
   const futureDate = new Date();
-  futureDate.setDate(futureDate.getDate() + 5); // 3 days ahead
+  futureDate.setDate(futureDate.getDate() + 3);
   const endOfDay = new Date(futureDate.setHours(23, 59, 59, 999)).toISOString();
 
   console.log(`Fetching events from ${startOfDay} to ${endOfDay}`);
@@ -206,25 +160,6 @@ async function sendTelegramMessage(message) {
   } catch (error) {
     console.error("Error sending Telegram message:", error);
   }
-}
-
-function eventContainsDateKeywords(eventDetails) {
-  if (!eventDetails) {
-    return false;
-  }
-
-  const keywords = ["кино", "театр", "дима с катей на"];
-  const normalizedFields = [
-    eventDetails.summary,
-    eventDetails.description,
-    eventDetails.location,
-  ]
-    .filter(Boolean)
-    .map((field) => field.toLowerCase());
-
-  return normalizedFields.some((field) =>
-    keywords.some((keyword) => field.includes(keyword))
-  );
 }
 
 function delay(ms) {
@@ -334,12 +269,12 @@ async function runJob() {
 
 // Schedule cron job to run daily at 08:00 PM
 cron.schedule("0 8 * * *", runJob);
-cron.schedule("0 18 * * 2,4", function() {
-  sendMessage("Время оплатить Калиграфию")
-})
-cron.schedule("0 15 * * 3", function() {
-  sendMessage("Время оплатить Репетитора по математике")
-})
+cron.schedule("0 18 * * 2,4", function () {
+  sendTelegramMessage("Время оплатить Калиграфию");
+});
+cron.schedule("0 15 * * 3", function () {
+  sendTelegramMessage("Время оплатить Репетитора по математике");
+});
 
 runJob(); // Run immediately when the script starts
 console.log("Cronus started");

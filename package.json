@@ -15,7 +15,7 @@
     "googleapis": "^160.0.0",
     "moment": "^2.30.1",
     "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-telegram-bot-api": "^0.67.0"
   },
   "devDependencies": {
     "jest": "^30.1.3"

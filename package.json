@@ -14,12 +14,7 @@
     "dotenv": "^17.2.2",
     "googleapis": "^171.4.0",
     "moment": "^2.30.1",
-<<<<<<< Updated upstream
-    "node-cron": "^4.2.1",
-    "node-telegram-bot-api": "^0.67.0"
-=======
     "node-cron": "^4.2.1"
->>>>>>> Stashed changes
   },
   "devDependencies": {
     "jest": "^30.1.3"

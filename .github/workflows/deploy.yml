@@ -22,12 +22,24 @@ jobs:
           script: |
             cd /var/apps/cronos
             ./deploy.sh
-      - name: Send Telegram Notification
+      - name: Send Webhook Notification
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFICATION_WEBHOOK_URL: https://n8n.kunini.ru/webhook/489ce88c-f9e9-43ec-a36c-e5b787f6a287
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
         run: |
-          curl -s -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-          -d "chat_id=$TELEGRAM_CHAT_ID" \
-          -d "text=🚀 *Deployment Successful!*%0A%0A✅ Repository: *${{ github.repository }}*%0A🔄 Branch: *${{ github.ref_name }}*%0A🔧 Commit: [${{ github.sha }}]($GITHUB_COMMIT_URL)%0A💡 Triggered by: *${{ github.actor }}*" \
-          -d "parse_mode=Markdown"
+          COMMIT_URL="https://github.com/$REPOSITORY/commit/$COMMIT_SHA"
+          TEXT="🚀 *Deployment Successful!*
+
+          ✅ Repository: *$REPOSITORY*
+          🔄 Branch: *$BRANCH*
+          🔧 Commit: [$COMMIT_SHA]($COMMIT_URL)
+          💡 Triggered by: *$ACTOR*"
+          PAYLOAD=$(TEXT="$TEXT" node -e 'process.stdout.write(JSON.stringify({ text: process.env.TEXT }))')
+
+          curl --request POST \
+            --url "$NOTIFICATION_WEBHOOK_URL" \
+            --header 'content-type: application/json' \
+            --data "$PAYLOAD"
